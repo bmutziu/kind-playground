@@ -4,11 +4,24 @@ set -e
 
 # CONSTANTS
 
-readonly KIND_NODE_IMAGE=kindest/node:v1.23.3
+readonly KIND_NODE_IMAGE=kindest/node:v1.25.0@sha256:428aaa17ec82ccde0131cb2d1ca6547d13cf5fdabcc0bbecf749baa935387cbf
 readonly DNSMASQ_DOMAIN=kind.cluster
 readonly DNSMASQ_CONF=kind.k8s.conf
 
+shopt -s expand_aliases
+alias klssha='kitty +kitten ssh -o 'IdentityFile="/Users/bmutziu/.lima/_config/user"' -o 'IdentityFile="/Users/bmutziu/.ssh/google_compute_engine"' -o 'IdentityFile="/Users/bmutziu/.ssh/id_rsa"' -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o NoHostAuthenticationForLocalhost=yes -o GSSAPIAuthentication=no -o PreferredAuthentications=publickey -o Compression=no -o BatchMode=yes -o IdentitiesOnly=yes -o 'Ciphers="^aes128-gcm@openssh.com,aes256-gcm@openssh.com"' -o User=bmutziu -o ControlMaster=auto -o 'ControlPath="/Users/bmutziu/.lima/docker-0/ssh.sock"' -o ControlPersist=5m -o ForwardAgent=yes -o Hostname=127.0.0.1 -o Port=60606 lima-docker-0'
+
 # FUNCTIONS
+
+# init
+function pause(){
+   read -p "$*"
+}
+
+function klssh(){
+  local CMD=$1
+  kitty +kitten ssh -o 'IdentityFile="/Users/bmutziu/.lima/_config/user"' -o 'IdentityFile="/Users/bmutziu/.ssh/google_compute_engine"' -o 'IdentityFile="/Users/bmutziu/.ssh/id_rsa"' -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o NoHostAuthenticationForLocalhost=yes -o GSSAPIAuthentication=no -o PreferredAuthentications=publickey -o Compression=no -o BatchMode=yes -o IdentitiesOnly=yes -o 'Ciphers="^aes128-gcm@openssh.com,aes256-gcm@openssh.com"' -o User=bmutziu -o ControlMaster=auto -o 'ControlPath="/Users/bmutziu/.lima/docker-0/ssh.sock"' -o ControlPersist=5m -o ForwardAgent=yes -o Hostname=127.0.0.1 -o Port=60606 lima-docker-0 "${CMD}"
+}
 
 log(){
   echo "---------------------------------------------------------------------------------------"
@@ -56,7 +69,7 @@ proxy(){
   local NAME=$1
   local TARGET=$2
 
-  if [ -z $(docker ps --filter name=^proxy-gcr$ --format="{{ .Names }}") ]
+  if [ -z $(docker ps --filter name=^${NAME}$ --format="{{ .Names }}") ]
   then
     docker run -d --name $NAME --restart=always --net=kind -e REGISTRY_PROXY_REMOTEURL=$TARGET registry:2
     echo "Proxy $NAME (-> $TARGET) created"
@@ -89,32 +102,78 @@ subnet_to_ip(){
 root_ca(){
   log "ROOT CERTIFICATE ..."
 
-  mkdir -p .ssl
+#  mkdir -p .ssl
+#
+#  if [[ -f ".ssl/root-ca.pem" && -f ".ssl/root-ca-key.pem" ]]
+#  then
+#    echo "Root certificate already exists, skipping"
+#  else
+#    openssl genrsa -out .ssl/root-ca-key.pem 2048
+#    openssl req -x509 -new -nodes -key .ssl/root-ca-key.pem -days 3650 -sha256 -out .ssl/root-ca.pem -subj "/CN=kube-ca"
+#    echo "Root certificate created"
+#  fi
 
-  if [[ -f ".ssl/root-ca.pem" && -f ".ssl/root-ca-key.pem" ]]
-  then
-    echo "Root certificate already exists, skipping"
-  else
-    openssl genrsa -out .ssl/root-ca-key.pem 2048
-    openssl req -x509 -new -nodes -key .ssl/root-ca-key.pem -days 3650 -sha256 -out .ssl/root-ca.pem -subj "/CN=kube-ca"
-    echo "Root certificate created"
-  fi
+klssha '
+mkdir -p .ssl
+
+if [[ -f ".ssl/root-ca.pem" && -f ".ssl/root-ca-key.pem" ]]
+then
+  echo "Root certificate already exists, skipping"
+else
+  openssl genrsa -out .ssl/root-ca-key.pem 2048
+  openssl req -x509 -new -nodes -key .ssl/root-ca-key.pem -days 3650 -sha256 -out .ssl/root-ca.pem -subj "/CN=kube-ca"
+  echo "Root certificate created"
+fi
+'
+
+string_root_ca=$(cat << EOF
+mkdir -p .ssl
+
+if [[ -f ".ssl/root-ca.pem" && -f ".ssl/root-ca-key.pem" ]]
+then
+  echo "Root certificate already exists, skipping"
+else
+  openssl genrsa -out .ssl/root-ca-key.pem 2048
+  openssl req -x509 -new -nodes -key .ssl/root-ca-key.pem -days 3650 -sha256 -out .ssl/root-ca.pem -subj "/CN=kube-ca"
+  echo "Root certificate created"
+fi
+EOF
+)
+
+klssh "$string_root_ca"
 }
 
 install_ca(){
   log "INSTALL CERTIFICATE AUTHORITY ..."
 
+  #sudo mkdir -p /usr/local/share/ca-certificates/kind.cluster
+
+  #sudo cp -f .ssl/root-ca.pem /usr/local/share/ca-certificates/kind.cluster/ca.crt
+
+  #sudo update-ca-certificates
+
+  klssha '
   sudo mkdir -p /usr/local/share/ca-certificates/kind.cluster
-
   sudo cp -f .ssl/root-ca.pem /usr/local/share/ca-certificates/kind.cluster/ca.crt
-
   sudo update-ca-certificates
+  '
+
+  string_install_ca=$(cat << EOF
+  sudo mkdir -p /usr/local/share/ca-certificates/kind.cluster
+  sudo cp -f .ssl/root-ca.pem /usr/local/share/ca-certificates/kind.cluster/ca.crt
+  sudo update-ca-certificates
+EOF
+  )
+
+  klssh "$string_install_ca"
 }
 
 cluster(){
   local NAME=${1:-kind}
 
   log "CLUSTER ..."
+
+  # sshfs bmutziu@lima-docker-0:/home/bmutziu.linux ~/guest -ocache=no -onolocalcaches -ovolname=ssh
 
   docker pull $KIND_NODE_IMAGE
 
@@ -270,14 +329,35 @@ metallb(){
   local METALLB_START=$(subnet_to_ip $KIND_SUBNET 255.200)
   local METALLB_END=$(subnet_to_ip $KIND_SUBNET 255.250)
 
-  helm upgrade --install --wait --timeout 15m --atomic --namespace metallb-system --create-namespace \
-    --repo https://metallb.github.io/metallb metallb metallb --values - <<EOF
-configInline:
-  address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-        - $METALLB_START-$METALLB_END
+  #helm upgrade --install --wait --timeout 15m --atomic --namespace metallb-system --create-namespace \
+  #  --repo https://metallb.github.io/metallb metallb metallb --version 0.12.1 --values - <<EOF
+#configInline:
+#  address-pools:
+#    - name: default
+#      protocol: layer2
+#      addresses:
+#        - $METALLB_START-$METALLB_END
+#EOF
+  helm upgrade --install --wait --timeout 15m --atomic --namespace metallb-system --create-namespace --repo https://metallb.github.io/metallb metallb metallb
+
+  cat << EOF | kubectl apply -f -
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: l2-ip
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - default-pool
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default-pool
+  namespace: metallb-system
+spec:
+  addresses:
+  - $METALLB_START-$METALLB_END
 EOF
 }
 
@@ -285,6 +365,7 @@ ingress(){
   log "INGRESS-NGINX ..."
 
   helm upgrade --install --wait --timeout 15m --atomic --namespace ingress-nginx --create-namespace \
+    --set defaultBackend.image.repository="k8s.gcr.io/defaultbackend-arm64" \
     --repo https://kubernetes.github.io/ingress-nginx ingress-nginx ingress-nginx --values - <<EOF
 defaultBackend:
   enabled: true
@@ -296,42 +377,100 @@ dnsmasq(){
 
   local INGRESS_LB_IP=$(get_service_lb_ip ingress-nginx ingress-nginx-controller)
 
-  echo "address=/$DNSMASQ_DOMAIN/$INGRESS_LB_IP" | sudo tee /etc/dnsmasq.d/$DNSMASQ_CONF
+  klssh "echo 'address=/$DNSMASQ_DOMAIN/$INGRESS_LB_IP' | sudo tee /etc/dnsmasq.d/$DNSMASQ_CONF"
 }
 
 restart_service(){
   log "RESTART $1 ..."
 
-  sudo systemctl restart $1
+  klssh "sudo systemctl restart $1"
 }
 
+routing(){
+  log "routing"
+
+  local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
+  echo $LIMA_IP_ADDR
+
+  sudo route -nv add -net 172.18 ${LIMA_IP_ADDR}
+
+  #klssha '
+  #KIND_IF=$(ip -o link show|cut -d " " -f 2|grep "br-")
+  #SRC_IP=192.168.105.1
+  #DST_NET=172.18.0.0/16
+  #HOST_IF=lima0
+  #sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF%?}
+  #sudo iptables -L
+  #'
+
+  string_routing=$(cat << EOF
+  KIND_IF=\$(ip -o link show|cut -d " " -f 2|grep "br-")
+  SRC_IP=192.168.105.1
+  SRC_IP=192.168.105.1
+  DST_NET=172.18.0.0/16
+  HOST_IF=lima0
+  sudo iptables -t filter -A FORWARD -4 -p tcp -s \${SRC_IP} -d \${DST_NET} -j ACCEPT -i \${HOST_IF} -o \${KIND_IF%?}
+  sudo iptables -L -n -v|grep \${HOST_IF}
+EOF
+  )
+
+  klssh "$string_routing"
+}
 cleanup(){
   log "CLEANUP ..."
 
-  kind delete cluster || true
-  sudo rm -f /etc/dnsmasq.d/$DNSMASQ_CONF
-  sudo rm -rf /usr/local/share/ca-certificates/kind.cluster
+  #kind delete cluster || true
+  #klssh "sudo rm -f /etc/dnsmasq.d/$DNSMASQ_CONF"
+  #klssh "sudo rm -rf /usr/local/share/ca-certificates/kind.cluster"
+
+  local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2) 
+  sudo route -nv delete -net 172.18 ${LIMA_IP_ADDR}
+
+string_cleanup_routing=$(cat << EOF
+  KIND_IF=\$(ip -o link show|cut -d " " -f 2|grep "br-")
+  SRC_IP=192.168.105.1
+  SRC_IP=192.168.105.1
+  DST_NET=172.18.0.0/16
+  HOST_IF=lima0
+  sudo iptables -t filter -D FORWARD -4 -p tcp -s \${SRC_IP} -d \${DST_NET} -j ACCEPT -i \${HOST_IF} -o \${KIND_IF%?}
+  sudo iptables -L -n -v|grep \${HOST_IF}
+EOF
+  )
+
+  klssh "$string_cleanup_routing"
 }
 
 # RUN
 
-cleanup
-network
-proxies
-root_ca
-install_ca
-cluster
-cilium
-cert_manager
-cert_manager_ca_secret
-cert_manager_ca_issuer
-metallb
-ingress
-dnsmasq
-restart_service   dnsmasq
+# cleanup
+# network
+# proxies
+pause "cleanup network proxies"
+# root_ca
+# install_ca
+pause "[root|install]_ca"
+# cluster
+pause "cluster"
+# cilium
+pause "cilium"
+# cert_manager
+# cert_manager_ca_secret
+# cert_manager_ca_issuer
+pause "cert_manager"
+# metallb
+pause "metallb"
+# ingress
+pause "ingress"
+# dnsmasq
+# restart_service  dnsmasq
+pause "dnsmasq"
+routing
+pause "routing"
 
 # DONE
 
 log "CLUSTER READY !"
 
+# 127.0.0.1 hubble-ui.kind.cluster (/etc/hosts)
+# ssh -L 9996:172.18.255.200:443 -o Hostname=127.0.0.1 -o Port=60606 lima-docker-0
 echo "HUBBLE UI: https://hubble-ui.$DNSMASQ_DOMAIN"

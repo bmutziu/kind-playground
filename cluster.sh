@@ -173,7 +173,9 @@ cluster(){
 
   log "CLUSTER ..."
 
-  # sshfs bmutziu@lima-docker-0:/home/bmutziu.linux ~/guest -ocache=no -onolocalcaches -ovolname=ssh
+  umount /Users/bmutziu/guest 
+  sshfs bmutziu@lima-docker-0:/home/bmutziu.linux ~/guest -ocache=no -onolocalcaches -ovolname=ssh
+  ln -sf ~/guest/.ssl .
 
   docker pull $KIND_NODE_IMAGE
 
@@ -259,7 +261,7 @@ EOF
 cilium(){
   log "CILIUM ..."
 
-  helm upgrade --install --wait --timeout 15m --atomic --namespace kube-system --create-namespace \
+  helm upgrade --install --wait --timeout 27m --atomic --namespace kube-system --create-namespace \
     --repo https://helm.cilium.io cilium cilium --values - <<EOF
 kubeProxyReplacement: strict
 k8sServiceHost: kind-external-load-balancer
@@ -375,6 +377,29 @@ EOF
 dnsmasq(){
   log "DNSMASQ ..."
 
+  klssh "sudo apt install -y dnsmasq"
+
+  klssh "sudo systemctl stop systemd-resolved && sudo systemctl disable systemd-resolved && sudo systemctl mask systemd-resolved"
+
+  string_dnsmasq=$(cat << EOF
+  cat << FOE > /tmp/dnsmasq.conf
+  bind-interfaces
+  listen-address=127.0.0.1
+  server=8.8.8.8
+  server=8.8.4.4
+  conf-dir=/etc/dnsmasq.d/,*.conf
+FOE
+EOF
+)
+
+  string_hosts=$(cat << EOF
+  LIMA_IF=\$(ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
+  echo -e '\n'\${LIMA_IF} lima-docker-0 | sudo tee -a /etc/hosts
+EOF
+  )
+
+  klssh "$string_hosts"
+
   local INGRESS_LB_IP=$(get_service_lb_ip ingress-nginx ingress-nginx-controller)
 
   klssh "echo 'address=/$DNSMASQ_DOMAIN/$INGRESS_LB_IP' | sudo tee /etc/dnsmasq.d/$DNSMASQ_CONF"
@@ -419,9 +444,10 @@ EOF
 cleanup(){
   log "CLEANUP ..."
 
-  #kind delete cluster || true
-  #klssh "sudo rm -f /etc/dnsmasq.d/$DNSMASQ_CONF"
-  #klssh "sudo rm -rf /usr/local/share/ca-certificates/kind.cluster"
+  umount /Users/bmutziu/guest
+  kind delete cluster || true
+  klssh "sudo rm -f /etc/dnsmasq.d/$DNSMASQ_CONF"
+  klssh "sudo rm -rf /usr/local/share/ca-certificates/kind.cluster"
 
   local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2) 
   sudo route -nv delete -net 172.18 ${LIMA_IP_ADDR}
@@ -443,9 +469,10 @@ EOF
 # RUN
 
 # cleanup
+pause "cleanup"
 # network
 # proxies
-pause "cleanup network proxies"
+pause "network proxies"
 # root_ca
 # install_ca
 pause "[root|install]_ca"
@@ -453,17 +480,17 @@ pause "[root|install]_ca"
 pause "cluster"
 # cilium
 pause "cilium"
-# cert_manager
-# cert_manager_ca_secret
-# cert_manager_ca_issuer
+cert_manager
+cert_manager_ca_secret
+cert_manager_ca_issuer
 pause "cert_manager"
-# metallb
+metallb
 pause "metallb"
-# ingress
+ingress
 pause "ingress"
 # dnsmasq
-# restart_service  dnsmasq
-pause "dnsmasq"
+# restart_service dnsmasq
+# pause "dnsmasq"
 routing
 pause "routing"
 

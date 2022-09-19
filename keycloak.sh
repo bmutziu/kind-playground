@@ -9,13 +9,18 @@ readonly TF_STATE=.tf-state/keycloak.tfstate
 
 # FUNCTIONS
 
+# init
+function pause(){
+   read -p "$*"
+}
+
 log(){
   echo "---------------------------------------------------------------------------------------"
   echo $1
   echo "---------------------------------------------------------------------------------------"
 }
 
-keycloak(){
+keycloak_bitnami(){
   log "KEYCLOAK ..."
 
   helm upgrade --install --wait --timeout 15m --atomic --namespace keycloak --create-namespace \
@@ -40,6 +45,13 @@ postgresql:
     postgresPassword: password
     password: password
 EOF
+}
+
+keycloak(){
+  log "KEYCLOAK ..."
+
+  helm upgrade --install --wait --timeout 27m --atomic --namespace keycloak --create-namespace \
+    --repo https://codecentric.github.io/helm-charts keycloak keycloak --set-string dbUser=keycloak,dbPassword=keycloak --reuse-values --values values.yaml
 }
 
 keycloak_config(){
@@ -128,12 +140,18 @@ kubectl_config(){
 
 # RUN
 
-cleanup
-keycloak
-keycloak_config
-rbac
+# cleanup
+pause "cleanup"
+# keycloak
+pause "keycloak"
+# keycloak_config
+pause "keycloak_config"
+# rbac
+pause "rbac"
 kubectl_config    user-admin
+pause "kubectl_config user-admin"
 kubectl_config    user-dev
+pause "kubectl_config user-dev"
 
 # DONE
 

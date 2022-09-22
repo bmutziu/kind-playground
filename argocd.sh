@@ -41,7 +41,7 @@ server:
   config:
     url: https://argocd.$DNSMASQ_DOMAIN
     application.instanceLabelKey: argocd.argoproj.io/instance
-    admin.enabled: 'false'
+    admin.enabled: 'true'
     resource.exclusions: |
       - apiGroups:
           - cilium.io

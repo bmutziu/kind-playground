@@ -144,13 +144,13 @@ kubectl_config(){
 pause "cleanup"
 # keycloak
 pause "keycloak"
-# keycloak_config
+keycloak_config
 pause "keycloak_config"
 # rbac
 pause "rbac"
-kubectl_config    user-admin
+# kubectl_config    user-admin
 pause "kubectl_config user-admin"
-kubectl_config    user-dev
+# kubectl_config    user-dev
 pause "kubectl_config user-dev"
 
 # DONE

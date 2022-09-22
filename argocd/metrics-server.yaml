@@ -7,13 +7,13 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.bitnami.com/bitnami
+    repoURL: https://kubernetes-sigs.github.io/metrics-server
     chart: metrics-server
     targetRevision: '*'
     helm:
       values: |
-        extraArgs:
-          kubelet-insecure-tls: true
+        args:
+          - --kubelet-insecure-tls=true
         apiService:
           create: true
   destination:

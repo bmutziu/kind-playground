@@ -27,6 +27,7 @@ kube_prometheus_stack(){
 kubeEtcd:
   service:
     enabled: true
+    port: 2381
     targetPort: 2381
 kubeProxy:
   enabled: false

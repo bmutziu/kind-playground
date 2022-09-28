@@ -56,6 +56,8 @@ prometheus:
   prometheusSpec:
     ruleSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
     podMonitorSelectorNilUsesHelmValues: false
     probeSelectorNilUsesHelmValues: false
   ingress:
@@ -88,6 +90,11 @@ grafana:
     datasources:
       enabled: true
       searchNamespace: ALL
+      defaultDatasourceEnabled: true
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-loki-distributed-query-frontend.monitoring:3100
   grafana.ini:
     server:
       root_url: https://grafana.$DNSMASQ_DOMAIN

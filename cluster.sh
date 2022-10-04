@@ -4,7 +4,7 @@ set -e
 
 # CONSTANTS
 
-readonly KIND_NODE_IMAGE=kindest/node:v1.25.0@sha256:428aaa17ec82ccde0131cb2d1ca6547d13cf5fdabcc0bbecf749baa935387cbf
+readonly KIND_NODE_IMAGE=kindest/node:v1.25.2@sha256:9be91e9e9cdf116809841fc77ebdb8845443c4c72fe5218f3ae9eb57fdb4bace
 readonly DNSMASQ_DOMAIN=kind.cluster
 readonly DNSMASQ_CONF=kind.k8s.conf
 
@@ -173,7 +173,6 @@ cluster(){
 
   log "CLUSTER ..."
 
-  umount /Users/bmutziu/guest 
   sshfs bmutziu@lima-docker-0:/home/bmutziu.linux ~/guest -ocache=no -onolocalcaches -ovolname=ssh
   ln -sf ~/guest/.ssl .
 
@@ -417,7 +416,7 @@ routing(){
   local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
   echo $LIMA_IP_ADDR
 
-  sudo route -nv add -net 172.18 ${LIMA_IP_ADDR}
+  sudo route -nv add -net 172.19 ${LIMA_IP_ADDR}
 
   #klssha '
   #KIND_IF=$(ip -o link show|cut -d " " -f 2|grep "br-")
@@ -431,8 +430,7 @@ routing(){
   string_routing=$(cat << EOF
   KIND_IF=\$(ip -o link show|cut -d " " -f 2|grep "br-")
   SRC_IP=192.168.105.1
-  SRC_IP=192.168.105.1
-  DST_NET=172.18.0.0/16
+  DST_NET=172.19.0.0/16
   HOST_IF=lima0
   sudo iptables -t filter -A FORWARD -4 -p tcp -s \${SRC_IP} -d \${DST_NET} -j ACCEPT -i \${HOST_IF} -o \${KIND_IF%?}
   sudo iptables -L -n -v|grep \${HOST_IF}
@@ -480,18 +478,18 @@ pause "[root|install]_ca"
 pause "cluster"
 # cilium
 pause "cilium"
-cert_manager
-cert_manager_ca_secret
-cert_manager_ca_issuer
+# cert_manager
+# cert_manager_ca_secret
+# cert_manager_ca_issuer
 pause "cert_manager"
-metallb
+# metallb
 pause "metallb"
-ingress
+# ingress
 pause "ingress"
 # dnsmasq
 # restart_service dnsmasq
 # pause "dnsmasq"
-routing
+# routing
 pause "routing"
 
 # DONE

@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql-mm
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql-mm
+  template:
+    metadata:
+      labels:
+        app: postgresql-mm
+    spec:
+      containers:
+      - name: postgresql-mm
+        image: arm64v8/postgres:10-bullseye
+        command: ["docker-entrypoint.sh"]
+        args: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+        ports:
+        - containerPort: 5432
+        resources:
+          requests:
+            cpu: 1500m
+            memory: 500Mi
+        env:
+            - name: POSTGRES_PASSWORD
+              value: "mostest"
+            - name: POSTGRES_USER
+              value: "mmuser"
+            - name: POSTGRES_DB
+              value: "mattermost_test"
+        volumeMounts:
+        - mountPath: "/var/lib/postgresql/data"
+          name: postgresqldb-mm
+        - mountPath: "/etc/postgresql/postgresql.conf"
+          name: config-mm
+          subPath: file-from-cfgmap
+      volumes:
+      - name: postgresqldb-mm
+        hostPath:
+          path: /opt/data
+      - name: config-mm
+        configMap:
+          name: postgres-cfgmap
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - kind-worker2

@@ -14,7 +14,7 @@ log(){
   echo "---------------------------------------------------------------------------------------"
 }
 
-gitea(){
+gitea_bitnami(){
   log "GITEA ..."
 
   helm upgrade --install --wait --timeout 15m --atomic --namespace gitea --create-namespace \
@@ -22,7 +22,7 @@ gitea(){
 gitea:
   admin:
     username: gitea_admin
-    password: admin
+    password: gitea_admin
 ingress:
   enabled: true
   annotations:
@@ -41,10 +41,18 @@ ingress:
 EOF
 }
 
+gitea(){
+  log "GITEA ..."
+
+  helm upgrade --install --wait --timeout 15m --atomic --namespace gitea --create-namespace \
+    --repo https://dl.gitea.io/charts gitea gitea --reuse-values --values values-gitea.yaml
+}
+
+
 repository(){
   local NAME=${1:-gitops}
   curl -X POST \
-    -u gitea_admin:admin \
+    -u gitea_admin:r8sA8CPHD9!bt6d \
     https://gitea.kind.cluster/api/v1/user/repos \
     -H 'accept: application/json' \
     -H 'Content-Type: application/json' \
@@ -58,8 +66,8 @@ EOF
 # RUN
 
 gitea
-sleep 10s
-repository  gitops
+sleep 9
+repository gitops
 
 # DONE
 

@@ -33,7 +33,7 @@ init(){
 
   mkdir .gitops
   git init .gitops
-  git -C .gitops remote add origin http://gitea_admin:admin@gitea.kind.cluster/gitea_admin/gitops.git
+  git -C .gitops remote add origin http://gitea_admin:r8sA8CPHD9!bt6d@gitea.kind.cluster/gitea_admin/gitops.git
   git -C .gitops fetch --all || true
   git -C .gitops pull origin master || true
 }

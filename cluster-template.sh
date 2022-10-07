@@ -416,7 +416,7 @@ routing(){
   local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
   echo $LIMA_IP_ADDR
 
-  sudo route -nv add -net 172.18 ${LIMA_IP_ADDR}
+  sudo route -nv add -net ${KIND_SUBNET_SHORT} ${LIMA_IP_ADDR}
 
   #klssha '
   #KIND_IF=$(ip -o link show|cut -d " " -f 2|grep "br-")
@@ -429,8 +429,8 @@ routing(){
 
   string_routing=$(cat << EOF
   KIND_IF=\$(ip -o link show|cut -d " " -f 2|grep "br-")
-  SRC_IP=192.168.105.1
-  DST_NET=172.18.0.0/16
+  SRC_IP=${LIMA_IP_ADDR_EXTERNAL}
+  DST_NET=${KIND_SUBNET_EXTERNAL}
   HOST_IF=lima0
   sudo iptables -t filter -A FORWARD -4 -p tcp -s \${SRC_IP} -d \${DST_NET} -j ACCEPT -i \${HOST_IF} -o \${KIND_IF%?}
   sudo iptables -L -n -v|grep \${HOST_IF}
@@ -448,12 +448,12 @@ cleanup(){
   klssh "sudo rm -rf /usr/local/share/ca-certificates/kind.cluster"
 
   local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2) 
-  sudo route -nv delete -net 172.18 ${LIMA_IP_ADDR}
+  sudo route -nv delete -net ${KIND_SUBNET_SHORT} ${LIMA_IP_ADDR}
 
 string_cleanup_routing=$(cat << EOF
   KIND_IF=\$(ip -o link show|cut -d " " -f 2|grep "br-")
-  SRC_IP=192.168.105.1
-  DST_NET=172.18.0.0/16
+  SRC_IP=${LIMA_IP_ADDR_EXTERNAL}
+  DST_NET=${KIND_SUBNET_EXTERNAL}
   HOST_IF=lima0
   sudo iptables -t filter -D FORWARD -4 -p tcp -s \${SRC_IP} -d \${DST_NET} -j ACCEPT -i \${HOST_IF} -o \${KIND_IF%?}
   sudo iptables -L -n -v|grep \${HOST_IF}
@@ -477,18 +477,18 @@ pause "[root|install]_ca"
 pause "cluster"
 # cilium
 pause "cilium"
-cert_manager
-cert_manager_ca_secret
-cert_manager_ca_issuer
+# cert_manager
+# cert_manager_ca_secret
+# cert_manager_ca_issuer
 pause "cert_manager"
-metallb
+# metallb
 pause "metallb"
-ingress
+# ingress
 pause "ingress"
 # dnsmasq
 # restart_service dnsmasq
 # pause "dnsmasq"
-routing
+# routing
 pause "routing"
 
 # DONE

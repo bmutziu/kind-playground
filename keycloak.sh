@@ -140,17 +140,17 @@ kubectl_config(){
 
 # RUN
 
-# cleanup
+cleanup
 pause "cleanup"
-# keycloak
+keycloak
 pause "keycloak"
 keycloak_config
 pause "keycloak_config"
-# rbac
+rbac
 pause "rbac"
-# kubectl_config    user-admin
+kubectl_config user-admin
 pause "kubectl_config user-admin"
-# kubectl_config    user-dev
+kubectl_config user-dev
 pause "kubectl_config user-dev"
 
 # DONE

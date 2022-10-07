@@ -8,6 +8,11 @@ readonly DNSMASQ_DOMAIN=kind.cluster
 
 # FUNCTIONS
 
+# init
+function pause(){
+   read -p "$*"
+}
+
 log(){
   echo "---------------------------------------------------------------------------------------"
   echo $1
@@ -32,10 +37,17 @@ init(){
   log "INIT ..."
 
   mkdir .gitops
+  touch .gitops/README.md
+  git config --global init.defaultBranch main
   git init .gitops
+  git -C .gitops config pull.rebase true
+  git -C .gitops checkout -b main
+  git -C .gitops add README.md
+  git -C .gitops commit -m "first commit"
   git -C .gitops remote add origin http://gitea_admin:r8sA8CPHD9!bt6d@gitea.kind.cluster/gitea_admin/gitops.git
   git -C .gitops fetch --all || true
-  git -C .gitops pull origin master || true
+  git -C .gitops pull origin main || true
+  git -C .gitops push -u origin main
 }
 
 install(){
@@ -58,42 +70,50 @@ metallb:
 
 applications:
   argocd:
-    enabled: true
+    enabled: false
   certManager:
-    enabled: true
+    enabled: false
   cilium:
-    enabled: true
+    enabled: false
   gitea:
-    enabled: true
-  ingressNginx:
-    enabled: true
-  keycloak:
-    enabled: true
-  kubeview:
-    enabled: true
-  kyverno:
-    enabled: true
-  kyvernoPolicies:
-    enabled: true
+    enabled: false
   metallb:
-    enabled: true
+    enabled: false
+  ingressNginx:
+    enabled: false
+  keycloak:
+    enabled: false
+  kubeview:
+    enabled: false
+  kyverno:
+    enabled: false
+  kyvernoPolicies:
+    enabled: false
   metricsServer:                        
     enabled: true
   nodeProblemDetector:
-    enabled: true
+    enabled: false
   policyReporter:
-    enabled: true
+    enabled: false
   rbacManager:
-    enabled: true
+    enabled: false
+  polaris:
+    enabled: false
+  istio:
+    enabled: false
+  localPathProvisioner:
+    enabled: false
 EOF
 }
 
 push(){
   log "PUSH ..."
 
+  cp .gitops/config.yaml .gitops/gitops/values.yaml
+
   git -C .gitops add .
   git -C .gitops commit -m "gitops" --allow-empty
-  git -C .gitops push -u origin master
+  git -C .gitops push -u origin main
 }
 
 bootstrap(){
@@ -114,7 +134,7 @@ spec:
   project: default
   source:
     repoURL: http://gitea.kind.cluster/gitea_admin/gitops
-    path: helm/gitops
+    path: gitops
     targetRevision: HEAD
     helm:
       values: |
@@ -145,17 +165,24 @@ EOF
 unhelm(){
   log "REMOVE HELM SECRETS ..."
 
-  kubectl delete secret -A -l owner=helm
+  # kubectl delete secret -A -l owner=helm
+  kubectl get secret -A -l owner=helm
 }
 
 # RUN
 
 cleanup
+pause "cleanup"
 init
+pause "init"
 install
+pause "install"
 push
+pause "push"
 bootstrap
+pause "bootstrap"
 unhelm
+pause "unhelm"
 
 # DONE
 

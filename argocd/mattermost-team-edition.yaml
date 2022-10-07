@@ -58,12 +58,12 @@ spec:
           MM_GITLABSETTINGS_USERAPIENDPOINT: https://keycloak.kind.cluster/auth/realms/master/protocol/openid-connect/userinfo
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: mattermost
   revisionHistoryLimit: 3
   syncPolicy:
     syncOptions:
       - ApplyOutOfSyncOnly=true
-      - CreateNamespace=false
+      - CreateNamespace=true
       - FailOnSharedResource=true
       - PruneLast=true
     automated:

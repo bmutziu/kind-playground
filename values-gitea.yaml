@@ -317,7 +317,7 @@ gitea:
   config:
     database:
       DB_TYPE: postgres
-      HOST: 172.19.0.6:31484
+      HOST: 172.18.0.10:31968
       NAME: gitea
       USER: keycloak
       PASSWD: keycloak

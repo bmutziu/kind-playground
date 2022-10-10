@@ -265,7 +265,7 @@ cilium(){
 kubeProxyReplacement: strict
 k8sServiceHost: kind-external-load-balancer
 k8sServicePort: 6443
-hostServices:
+socketLB:
   enabled: true
 externalIPs:
   enabled: true

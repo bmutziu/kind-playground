@@ -19,7 +19,7 @@ deploy(){
 # deploy ingress-nginx
 # deploy kyverno
 # deploy kyverno-policies
-# deploy policy-reporter
+deploy policy-reporter
 # deploy keycloak
 # deploy argocd
 # deploy minio
@@ -28,6 +28,6 @@ deploy(){
 # deploy node-problem-detector
 # deploy polaris
 # deploy kubeview
-deploy mattermost-team-edition
+# deploy mattermost-team-edition
 
 # kubectl apply -n mattermost -f ./manifests/mattermost-team-edition

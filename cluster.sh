@@ -265,6 +265,7 @@ cilium(){
 kubeProxyReplacement: strict
 k8sServiceHost: kind-external-load-balancer
 k8sServicePort: 6443
+policyEnforcementMode: always
 socketLB:
   enabled: true
 externalIPs:
@@ -475,7 +476,7 @@ pause "network proxies"
 pause "[root|install]_ca"
 # cluster
 pause "cluster"
-# cilium
+cilium
 pause "cilium"
 cert_manager
 cert_manager_ca_secret

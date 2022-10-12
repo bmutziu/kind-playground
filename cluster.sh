@@ -265,7 +265,12 @@ cilium(){
 kubeProxyReplacement: strict
 k8sServiceHost: kind-external-load-balancer
 k8sServicePort: 6443
-policyEnforcementMode: always
+policyEnforcementMode: always    # enforce network policies
+policyAuditMode: true            # do not block traffic
+hostFirewall:
+  enabled: true                  # enable host policies
+extraConfig:
+  allow-localhost: policy        # enable policies for local host
 socketLB:
   enabled: true
 externalIPs:
@@ -417,7 +422,7 @@ routing(){
   local LIMA_IP_ADDR=$(ssh bmutziu@lima-docker-0 -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
   echo $LIMA_IP_ADDR
 
-  sudo route -nv add -net 172.18 ${LIMA_IP_ADDR}
+  sudo route -nv add -net 172.19 ${LIMA_IP_ADDR}
 
   #klssha '
   #KIND_IF=$(ip -o link show|cut -d " " -f 2|grep "br-")
@@ -431,7 +436,7 @@ routing(){
   string_routing=$(cat << EOF
   KIND_IF=\$(ip -o link show|cut -d " " -f 2|grep "br-")
   SRC_IP=192.168.105.1
-  DST_NET=172.18.0.0/16
+  DST_NET=172.19.0.0/16
   HOST_IF=lima0
   sudo iptables -t filter -A FORWARD -4 -p tcp -s \${SRC_IP} -d \${DST_NET} -j ACCEPT -i \${HOST_IF} -o \${KIND_IF%?}
   sudo iptables -L -n -v|grep \${HOST_IF}
@@ -476,15 +481,15 @@ pause "network proxies"
 pause "[root|install]_ca"
 # cluster
 pause "cluster"
-cilium
+# cilium
 pause "cilium"
-cert_manager
-cert_manager_ca_secret
-cert_manager_ca_issuer
+# cert_manager
+# cert_manager_ca_secret
+# cert_manager_ca_issuer
 pause "cert_manager"
-metallb
+# metallb
 pause "metallb"
-ingress
+# ingress
 pause "ingress"
 # dnsmasq
 # restart_service dnsmasq
